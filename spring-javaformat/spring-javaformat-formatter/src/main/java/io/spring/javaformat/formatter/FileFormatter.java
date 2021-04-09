@@ -122,4 +122,8 @@ public class FileFormatter {
 		}
 	}
 
+	public void addOrReplaceOption(String key, String value) {
+		this.formatter.addOrReplaceOption(key, value);
+	}
+
 }

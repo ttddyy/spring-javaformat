@@ -40,13 +40,20 @@ public class ApplyMojo extends FormatMojo {
 	@Override
 	protected void execute(List<File> files, Charset encoding, String lineSeparator)
 			throws MojoExecutionException, MojoFailureException {
+
+		System.out.println("AAA applying format - start");
+
 		try {
 			FileFormatter formatter = new FileFormatter();
+			formatter.addOrReplaceOption("org.eclipse.jdt.core.formatter.tabulation.char", "space");
+			formatter.addOrReplaceOption("org.eclipse.jdt.core.formatter.tabulation.size", "2");
 			formatter.formatFiles(files, encoding, lineSeparator).filter(FileEdit::hasEdits).forEach(this::save);
 		}
 		catch (FileFormatterException ex) {
 			throw new MojoExecutionException("Unable to format file " + ex.getFile(), ex);
 		}
+
+		System.out.println("AAA applying format - end");
 	}
 
 	private void save(FileEdit edit) {
