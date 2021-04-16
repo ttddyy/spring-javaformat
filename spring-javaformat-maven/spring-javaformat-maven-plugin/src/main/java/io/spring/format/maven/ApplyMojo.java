@@ -19,12 +19,16 @@ package io.spring.format.maven;
 import java.io.File;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 
+import io.spring.javaformat.formatter.EditorConfigManager;
 import io.spring.javaformat.formatter.FileEdit;
 import io.spring.javaformat.formatter.FileFormatter;
 import io.spring.javaformat.formatter.FileFormatterException;
@@ -41,19 +45,36 @@ public class ApplyMojo extends FormatMojo {
 	protected void execute(List<File> files, Charset encoding, String lineSeparator)
 			throws MojoExecutionException, MojoFailureException {
 
-		System.out.println("AAA applying format - start");
+		// group by suffix
+		Map<String, List<File>> filesByType = files.stream().collect(
+				Collectors.groupingBy(file -> {
+					String filename = file.getName();
+					int lastIndex = filename.lastIndexOf(".");
+					if (lastIndex < 0) {
+						return "";
+					}
+					return filename.substring(lastIndex + 1);
+				}));
 
+		String projDir = this.project.getBasedir().getPath();
+
+		EditorConfigManager editorConfigManager = new EditorConfigManager();
 		try {
-			FileFormatter formatter = new FileFormatter();
-			formatter.addOrReplaceOption("org.eclipse.jdt.core.formatter.tabulation.char", "space");
-			formatter.addOrReplaceOption("org.eclipse.jdt.core.formatter.tabulation.size", "2");
-			formatter.formatFiles(files, encoding, lineSeparator).filter(FileEdit::hasEdits).forEach(this::save);
+			for (List<File> filesToFormat : filesByType.values()) {
+				File firstFile = filesToFormat.get(0);
+				Map<String, String> options = editorConfigManager.getProperties(firstFile, projDir);
+
+				FileFormatter formatter = new FileFormatter();
+				for (Entry<String, String> entry : options.entrySet()) {
+					formatter.addOrReplaceOption(entry.getKey(), entry.getValue());
+				}
+				formatter.formatFiles(files, encoding, lineSeparator).filter(FileEdit::hasEdits).forEach(this::save);
+			}
 		}
 		catch (FileFormatterException ex) {
 			throw new MojoExecutionException("Unable to format file " + ex.getFile(), ex);
 		}
 
-		System.out.println("AAA applying format - end");
 	}
 
 	private void save(FileEdit edit) {

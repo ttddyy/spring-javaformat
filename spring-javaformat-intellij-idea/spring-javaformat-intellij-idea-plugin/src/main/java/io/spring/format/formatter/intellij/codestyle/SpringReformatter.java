@@ -16,7 +16,10 @@
 
 package io.spring.format.formatter.intellij.codestyle;
 
+import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Supplier;
 
 import com.intellij.core.CoreBundle;
@@ -38,6 +41,7 @@ import org.eclipse.jface.text.IRegion;
 import org.eclipse.text.edits.TextEdit;
 
 import io.spring.javaformat.formatter.Formatter;
+import io.spring.javaformat.formatter.EditorConfigManager;
 
 /**
  * Reformatter used by {@link SpringCodeStyleManager} to determine when formatting can
@@ -56,6 +60,8 @@ class SpringReformatter {
 	private final Supplier<Application> application;
 
 	private final Supplier<PsiDocumentManager> documentManager;
+
+	private EditorConfigManager editorConfigManager = new EditorConfigManager();
 
 	SpringReformatter(Supplier<Project> project) {
 		this.project = project;
@@ -102,7 +108,15 @@ class SpringReformatter {
 
 	private void reformat(PsiFile file, Collection<TextRange> ranges, Document document) {
 		if (document != null) {
+			Path path = file.getVirtualFile().toNioPath();
+			String projectRootPath = file.getProject().getBasePath();
+			Map<String, String> options = this.editorConfigManager.getProperties(path.toFile(), projectRootPath);
+
 			Formatter formatter = new Formatter();
+			for (Entry<String, String> entry : options.entrySet()) {
+				formatter.addOrReplaceOption(entry.getKey(), entry.getValue());
+			}
+
 			String source = document.getText();
 			IRegion[] regions = EclipseRegionAdapter.asArray(ranges);
 			TextEdit edit = formatter.format(source, regions, NORMALIZED_LINE_SEPARATOR);
